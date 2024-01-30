@@ -263,7 +263,7 @@ class TableResource(Resource):
 
     def __open_row_stream(self):
         # TODO: we need to rework this field_info / row code
-        # During row streaming we crate a field info structure
+        # During row streaming we create a field info structure
         # This structure is optimized and detached version of schema.fields
         # We create all data structures in-advance to share them between rows
 
@@ -310,7 +310,6 @@ class TableResource(Resource):
             for row_number, cells in enumerated_content_stream:
                 self.stats.rows += 1
 
-                # Create row
                 row = Row(
                     cells,
                     field_info=field_info,
@@ -387,7 +386,16 @@ class TableResource(Resource):
                 # Yield row
                 yield row
 
-        # Crreate row stream
+        # NB: missing required labels are not included in the
+        # field_info parameter used for row creation
+        if self.detector.schema_sync:
+            for field in self.schema.fields:
+                if field.name not in self.labels and field.name in field_info["names"]:
+                    field_index = field_info["names"].index(field.name)
+                    del field_info["names"][field_index]
+                    del field_info["objects"][field_index]
+                    del field_info["mapping"][field.name]
+        # # Create row stream
         self.__row_stream = row_stream()
 
     # Read
@@ -461,7 +469,7 @@ class TableResource(Resource):
             stats: stream file completely and infer stats
         """
         if not self.closed:
-            note = "Resource.infer canot be used on a open resource"
+            note = "Resource.infer cannot be used on a open resource"
             raise FrictionlessException(errors.ResourceError(note=note))
         with self:
             if not stats:
